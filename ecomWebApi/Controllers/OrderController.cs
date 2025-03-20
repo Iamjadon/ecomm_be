@@ -87,6 +87,39 @@ namespace ecomWebApi.Controllers
             return Ok(order);
         }
 
+                [HttpGet("GetOrdersByUserId/{userId}")]
+        public async Task<IActionResult> GetOrdersByUserId(int userId)
+        {
+            var orders = await _dbContext.Orders
+                .Where(o => o.UserId == userId)
+                .Include(o => o.OrderItems)
+                    .ThenInclude(oi => oi.Product) // Include product details
+                .OrderByDescending(o => o.OrderDate) // Order by latest orders first
+                .ToListAsync();
+
+            if (orders == null || !orders.Any())
+                return NotFound(new { message = "No orders found for this user" });
+
+            var orderDTOs = orders.Select(order => new OrderDTO
+            {
+                OrderId = order.OrderId,
+                UserId = order.UserId,
+                AddressId = order.AddressId,
+                TotalAmount = order.TotalAmount,
+                Status = order.Status,
+                OrderDate = order.OrderDate,
+                OrderItems = order.OrderItems.Select(oi => new OrderItemDTO
+                {
+                    ProductId = oi.ProductId,
+                    ProductName = oi.Product?.Name ?? "Unknown",
+                    Quantity = oi.Quantity,
+                    Price = oi.Price
+                }).ToList()
+            }).ToList();
+
+            return Ok(orderDTOs);
+        }
+
 
     }
 }
